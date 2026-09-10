@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// Only members of a household can read or write anything under it.
+// Anyone signed in may create a household (they become its first member)
+// or join one by invite code (handled client-side: the joining user adds
+// their own uid to memberUids, which the update rule below permits).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(hid) {
+      return signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/households/$(hid)).data.memberUids;
+    }
+
+    match /households/{hid} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.memberUids == [request.auth.uid];
+      // A member may edit the household. A non-member may only append their
+      // own uid (joining via invite code) without touching other fields.
+      allow update: if isMember(hid)
+        || (signedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+            && request.resource.data.memberUids == resource.data.memberUids.concat([request.auth.uid]));
+      allow delete: if false;
+
+      match /pets/{petId} {
+        allow read, write: if isMember(hid);
+
+        match /entries/{entryId} {
+          allow read, write: if isMember(hid);
+        }
+      }
+    }
+  }
+}
