@@ -268,6 +268,8 @@ function ChartCanvas({ config }: { config: ChartConfiguration }) {
     if (!ref.current) return;
     chart.current?.destroy();
     chart.current = new Chart(ref.current, config);
+    // Exposed for automated checks (reads scale ticks and data).
+    (ref.current as unknown as { __chart?: Chart }).__chart = chart.current;
     return () => chart.current?.destroy();
   }, [config]);
   return (
