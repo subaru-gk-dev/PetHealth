@@ -3,9 +3,11 @@ import {
   dayKey,
   dayRange,
   drunkMl,
+  fmtKg,
   lastDays,
   latestWeightKg,
   mlPerKg,
+  roundKg,
   stoolByDay,
   totalMl,
   waterByDay,
@@ -93,6 +95,14 @@ describe('stoolByDay', () => {
     const m = stoolByDay(entries, ['2026-09-09', '2026-09-10']);
     expect(m.get('2026-09-09')).toEqual({ count: 1, blood: false });
     expect(m.get('2026-09-10')).toEqual({ count: 2, blood: true, meanScore: 4.5 });
+  });
+});
+
+describe('kg formatting', () => {
+  it('keeps two decimals', () => {
+    expect(fmtKg(6.2)).toBe('6.20');
+    expect(fmtKg(6.255)).toBe('6.26');
+    expect(roundKg(6.2549)).toBe(6.25);
   });
 });
 

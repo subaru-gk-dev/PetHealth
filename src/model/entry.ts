@@ -168,6 +168,8 @@ export interface Pet {
   sex?: 'male' | 'female';
   birthDate?: string; // YYYY-MM-DD
   currentWeightKg?: number;
+  /** Profile photo path (same storage as entry photos). */
+  photoPath?: string;
 }
 
 export interface Household {

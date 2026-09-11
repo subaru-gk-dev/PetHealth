@@ -1,3 +1,4 @@
+import { Photo } from './components/Photo';
 import { useRoute, useSession } from './hooks';
 import { Charts } from './pages/Charts';
 import { EntryForm } from './pages/EntryForm';
@@ -32,9 +33,12 @@ export function App() {
   return (
     <>
       <header class="topbar">
-        <div>
-          {s.pet?.name ?? 'わんこ健康ノート'}
-          {s.pet?.name && <div class="sub">わんこ健康ノート</div>}
+        <div class="topbar-id">
+          {s.pet?.photoPath && <Photo path={s.pet.photoPath} class="avatar" />}
+          <div>
+            {s.pet?.name ?? 'わんこ健康ノート'}
+            {s.pet?.name && <div class="sub">わんこ健康ノート</div>}
+          </div>
         </div>
         {s.store && (
           <div class="sub" data-testid="mode">

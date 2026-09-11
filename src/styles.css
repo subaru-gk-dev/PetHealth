@@ -421,3 +421,31 @@ main {
   letter-spacing: 4px;
   font-weight: 700;
 }
+
+.topbar-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.photo.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+}
+
+.photo.avatar.large {
+  width: 96px;
+  height: 96px;
+  max-height: none;
+  border: 2px solid var(--line);
+  object-fit: cover;
+  font-size: 40px;
+}
+
+.avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { Entry } from './model/entry';
 import { session, type SessionState } from './session';
+import { loadTheme, onThemeChange, type ThemePref } from './theme';
 
 export function useSession(): SessionState {
   const [state, setState] = useState(session.state);
@@ -32,6 +33,13 @@ export function useRoute(): string {
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
   return route;
+}
+
+/** Current theme preference; re-renders when it changes. */
+export function useTheme(): ThemePref {
+  const [t, setT] = useState<ThemePref>(loadTheme);
+  useEffect(() => onThemeChange(setT), []);
+  return t;
 }
 
 export function navigate(route: string): void {

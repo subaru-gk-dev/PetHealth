@@ -5,6 +5,7 @@ import {
   dayKey,
   dayStart,
   emptyWaterByKind,
+  fmtKg,
   latestWeightKg,
   mlPerKg,
   sortNewestFirst,
@@ -181,7 +182,7 @@ export function describe(e: Entry): string {
       return `${d.name}${d.dose ? ` ${d.dose}` : ''} ${d.given ? '✓ 済' : '未'}`;
     }
     case 'weight':
-      return `${(e.data as WeightData).kg} kg`;
+      return `${fmtKg((e.data as WeightData).kg)} kg`;
     case 'vital': {
       const d = e.data as VitalData;
       const parts: string[] = [];

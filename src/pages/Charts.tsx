@@ -12,12 +12,13 @@ import {
   type ChartConfiguration,
 } from 'chart.js';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { useEntries, useSession } from '../hooks';
+import { useEntries, useSession, useTheme } from '../hooks';
 import {
   WATER_ML_PER_KG_NORMAL_HIGH,
   WATER_ML_PER_KG_NORMAL_LOW,
   WATER_ML_PER_KG_POLYDIPSIA,
   dayStart,
+  fmtKg,
   lastDays,
   latestWeightKg,
   mlPerKg,
@@ -61,6 +62,8 @@ function shortDay(key: string): string {
 
 export function Charts() {
   const { pet } = useSession();
+  // Re-render (and re-read the CSS tokens) when the theme preference changes.
+  useTheme();
   const [days, setDays] = useState(14);
   const keys = useMemo(() => lastDays(days), [days]);
   const from = dayStart(keys[0]);
@@ -188,7 +191,12 @@ export function Charts() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: { y: { title: { display: true, text: 'kg' } } },
+      scales: {
+        y: {
+          title: { display: true, text: 'kg' },
+          ticks: { callback: (v) => fmtKg(Number(v)) },
+        },
+      },
     },
   };
 
@@ -214,7 +222,7 @@ export function Charts() {
           {weightKg && (
             <span>
               <i style={{ background: ink }} />
-              ml/kg（体重 {weightKg} kg）
+              ml/kg（体重 {fmtKg(weightKg)} kg）
             </span>
           )}
         </div>

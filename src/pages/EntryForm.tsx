@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { Photo } from '../components/Photo';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { navigate, useSession } from '../hooks';
-import { drunkMl } from '../model/calc';
+import { drunkMl, roundKg } from '../model/calc';
 import {
   ENTRY_ICON,
   ENTRY_LABEL,
@@ -542,7 +542,7 @@ function TypeFields({
             required
             min="0.1"
             value={d.kg || ''}
-            onInput={(ev) => patchData({ kg: num(ev.currentTarget.value) ?? 0 })}
+            onInput={(ev) => patchData({ kg: roundKg(num(ev.currentTarget.value) ?? 0) })}
           />
         </div>
       );

@@ -142,6 +142,16 @@ export function weightSeries(entries: Entry[]): { day: string; kg: number }[] {
     .map(([day, e]) => ({ day, kg: (e.data as WeightData).kg }));
 }
 
+/** Weight normalised to two decimals (0.01 kg resolution). */
+export function roundKg(kg: number): number {
+  return Math.round(kg * 100) / 100;
+}
+
+/** Weight for display, always two decimals (e.g. "6.20"). */
+export function fmtKg(kg: number): string {
+  return roundKg(kg).toFixed(2);
+}
+
 /** Entries sorted newest first. */
 export function sortNewestFirst<T extends Entry>(entries: T[]): T[] {
   return [...entries].sort((a, b) => b.at - a.at);

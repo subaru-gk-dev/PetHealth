@@ -1,7 +1,10 @@
 import { render } from 'preact';
 import { App } from './app';
 import { session } from './session';
+import { applyTheme, loadTheme } from './theme';
 import './styles.css';
+
+applyTheme(loadTheme());
 
 // The service worker only exists in a real deployment (Hosting / Pages).
 // When the page is served from somewhere else (e.g. a preview page) the

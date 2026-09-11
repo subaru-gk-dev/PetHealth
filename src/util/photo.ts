@@ -3,9 +3,9 @@
 
 const MAX_EDGE = 1280;
 
-export async function shrinkImage(file: Blob): Promise<Blob> {
+export async function shrinkImage(file: Blob, maxEdge = MAX_EDGE): Promise<Blob> {
   const bitmap = await loadBitmap(file);
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * scale);
   const h = Math.round(bitmap.height * scale);
   const canvas = document.createElement('canvas');

@@ -1,7 +1,12 @@
 import { useState } from 'preact/hooks';
-import { navigate, useSession } from '../hooks';
+import { Photo } from '../components/Photo';
+import { PhotoCapture } from '../components/PhotoCapture';
+import { navigate, useSession, useTheme } from '../hooks';
 import { newId, type Pet } from '../model/entry';
+import { roundKg } from '../model/calc';
 import { session } from '../session';
+import { setTheme, THEME_LABEL, type ThemePref } from '../theme';
+import { blobToDataUrl } from '../util/blob';
 
 export function Settings() {
   const s = useSession();
@@ -37,8 +42,30 @@ export function Settings() {
           </p>
         </div>
       )}
+      <ThemeCard />
       <Backup />
     </>
+  );
+}
+
+function ThemeCard() {
+  const theme = useTheme();
+  return (
+    <div class="card">
+      <h3>表示</h3>
+      <div class="chips" data-testid="theme-chips">
+        {(Object.keys(THEME_LABEL) as ThemePref[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            class={theme === t ? 'on' : ''}
+            onClick={() => setTheme(t)}
+          >
+            {THEME_LABEL[t]}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -116,10 +143,12 @@ function HouseholdSetup() {
 }
 
 function PetForm({ pet }: { pet?: Pet }) {
+  const { store } = useSession();
   const [draft, setDraft] = useState<Pet>(
     pet ?? { id: newId(), name: '', breed: 'ビションフリーゼ', sex: 'male' },
   );
   const [saved, setSaved] = useState(false);
+  const [pendingPhoto, setPendingPhoto] = useState<{ blob: Blob; url: string }>();
   const patch = (p: Partial<Pet>) => {
     setDraft({ ...draft, ...p });
     setSaved(false);
@@ -129,13 +158,40 @@ function PetForm({ pet }: { pet?: Pet }) {
       class="card form"
       onSubmit={(ev) => {
         ev.preventDefault();
-        void session.savePet(draft).then(() => {
+        void (async () => {
+          let photoPath = draft.photoPath;
+          if (pendingPhoto && store) {
+            photoPath = await store.savePhoto(draft.id, 'profile', pendingPhoto.blob);
+          }
+          await session.savePet({ ...draft, photoPath });
+          setPendingPhoto(undefined);
           setSaved(true);
           if (!pet) navigate('home');
-        });
+        })();
       }}
     >
       <h3>{pet ? 'わんこの情報' : 'わんこを登録'}</h3>
+      <div class="avatar-row">
+        {pendingPhoto ? (
+          <img class="photo avatar large" src={pendingPhoto.url} alt="" />
+        ) : draft.photoPath ? (
+          <Photo path={draft.photoPath} class="avatar large" />
+        ) : (
+          <div class="photo avatar large placeholder">🐶</div>
+        )}
+        <PhotoCapture
+          label="顔写真を選ぶ"
+          camera={false}
+          maxEdge={512}
+          testId="pet-photo-input"
+          onPhoto={(blob) => {
+            void blobToDataUrl(blob).then((url) => {
+              setPendingPhoto({ blob, url });
+              setSaved(false);
+            });
+          }}
+        />
+      </div>
       <div class="field">
         <label>名前</label>
         <input
@@ -185,7 +241,7 @@ function PetForm({ pet }: { pet?: Pet }) {
             value={draft.currentWeightKg ?? ''}
             onInput={(ev) => {
               const n = Number(ev.currentTarget.value);
-              patch({ currentWeightKg: ev.currentTarget.value === '' || !n ? undefined : n });
+              patch({ currentWeightKg: ev.currentTarget.value === '' || !n ? undefined : roundKg(n) });
             }}
           />
         </div>
