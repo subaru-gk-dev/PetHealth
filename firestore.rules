@@ -34,6 +34,12 @@ service cloud.firestore {
         match /entries/{entryId} {
           allow read, write: if isMember(hid);
         }
+
+        // Photos are stored here as JPEG bytes (Firestore documents are
+        // capped at 1 MiB; the app shrinks images well below that).
+        match /photos/{photoId} {
+          allow read, write: if isMember(hid);
+        }
       }
     }
   }

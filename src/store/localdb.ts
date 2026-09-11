@@ -12,6 +12,7 @@ interface PetHealthDB extends DBSchema {
     indexes: { byPetAt: [string, number] };
   };
   photos: { key: string; value: { path: string; blob: Blob } };
+  /** Unused since photos moved into Firestore; kept so existing databases open. */
   pendingUploads: { key: string; value: { path: string; blob: Blob; createdAt: number } };
   meta: { key: string; value: { key: string; value: unknown } };
 }

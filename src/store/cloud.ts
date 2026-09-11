@@ -1,8 +1,10 @@
-// Cloud store: Firestore (records) + Storage (photos), scoped to one household.
-// Firestore's persistent cache makes writes work offline. Photo uploads are
-// queued in IndexedDB and flushed whenever the device comes back online.
+// Cloud store: Firestore for records AND photos, scoped to one household.
+// Photos live as small documents (`photos` subcollection, JPEG bytes) so the
+// project stays on the free Spark plan; Cloud Storage would require Blaze.
+// Firestore's persistent cache queues writes made offline, photos included.
 
 import {
+  Bytes,
   collection,
   deleteDoc,
   doc,
@@ -14,24 +16,27 @@ import {
   setDoc,
   where,
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { getFirebase } from '../firebase';
-import type { Entry, Pet } from '../model/entry';
+import { newId, type Entry, type Pet } from '../model/entry';
 import { blobToDataUrl } from '../util/blob';
 import { localDb } from './localdb';
 import type { Store, Unsubscribe } from './types';
 
+/** Photo paths in cloud mode: fs:households/{hid}/pets/{petId}/photos/{photoId} */
+const PHOTO_PREFIX = 'fs:';
+
+interface PhotoDoc {
+  entryId: string;
+  contentType: string;
+  bytes: Bytes;
+  createdAt: number;
+}
+
 export class CloudStore implements Store {
   readonly mode = 'cloud' as const;
   private urlCache = new Map<string, string>();
-  private flushing = false;
 
-  constructor(private householdId: string) {
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => void this.flushUploads());
-      void this.flushUploads();
-    }
-  }
+  constructor(private householdId: string) {}
 
   private petsCol() {
     const { db } = getFirebase();
@@ -43,13 +48,18 @@ export class CloudStore implements Store {
     return collection(db, 'households', this.householdId, 'pets', petId, 'entries');
   }
 
+  private photosCol(petId: string) {
+    const { db } = getFirebase();
+    return collection(db, 'households', this.householdId, 'pets', petId, 'photos');
+  }
+
   async listPets(): Promise<Pet[]> {
     const snap = await getDocs(this.petsCol());
     return snap.docs.map((d) => d.data() as Pet);
   }
 
   async savePet(pet: Pet): Promise<void> {
-    await setDoc(doc(this.petsCol(), pet.id), pet);
+    await setDoc(doc(this.petsCol(), pet.id), stripUndefined(pet));
   }
 
   async listEntries(petId: string, fromMs: number, toMs: number): Promise<Entry[]> {
@@ -84,45 +94,36 @@ export class CloudStore implements Store {
   }
 
   async saveEntry(entry: Entry): Promise<void> {
-    // Firestore rejects `undefined`; strip it.
-    const clean = JSON.parse(JSON.stringify(entry)) as Entry;
-    await setDoc(doc(this.entriesCol(entry.petId), entry.id), clean);
+    await setDoc(doc(this.entriesCol(entry.petId), entry.id), stripUndefined(entry));
   }
 
   async deleteEntry(petId: string, entryId: string): Promise<void> {
+    const entry = await this.getEntry(petId, entryId);
     await deleteDoc(doc(this.entriesCol(petId), entryId));
+    const db = await localDb();
+    for (const p of entry?.photoPaths ?? []) {
+      const ref = this.photoRef(p);
+      if (ref) await deleteDoc(ref);
+      await db.delete('photos', p);
+      this.urlCache.delete(p);
+    }
   }
 
   async savePhoto(petId: string, entryId: string, blob: Blob): Promise<string> {
-    const path = `households/${this.householdId}/${petId}/${entryId}/${Date.now()}.jpg`;
+    const photoId = newId();
+    const path = `${PHOTO_PREFIX}households/${this.householdId}/pets/${petId}/photos/${photoId}`;
+    // Keep a local copy so the photo shows immediately and never needs a re-read.
     const db = await localDb();
-    // Keep a local copy so the photo shows immediately (and offline).
     await db.put('photos', { path, blob });
-    await db.put('pendingUploads', { path, blob, createdAt: Date.now() });
-    void this.flushUploads();
+    const bytes = Bytes.fromUint8Array(new Uint8Array(await blob.arrayBuffer()));
+    const photo: PhotoDoc = {
+      entryId,
+      contentType: blob.type || 'image/jpeg',
+      bytes,
+      createdAt: Date.now(),
+    };
+    await setDoc(doc(this.photosCol(petId), photoId), photo);
     return path;
-  }
-
-  /** Upload queued photos. Safe to call often; runs one flush at a time. */
-  async flushUploads(): Promise<void> {
-    if (this.flushing || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
-    this.flushing = true;
-    try {
-      const db = await localDb();
-      const pending = await db.getAll('pendingUploads');
-      const { storage } = getFirebase();
-      for (const p of pending) {
-        try {
-          await uploadBytes(ref(storage, p.path), p.blob, { contentType: 'image/jpeg' });
-          await db.delete('pendingUploads', p.path);
-        } catch (err) {
-          console.warn('photo upload deferred', p.path, err);
-          break;
-        }
-      }
-    } finally {
-      this.flushing = false;
-    }
   }
 
   async photoUrl(path: string): Promise<string | undefined> {
@@ -135,9 +136,16 @@ export class CloudStore implements Store {
       this.urlCache.set(path, url);
       return url;
     }
+    const ref = this.photoRef(path);
+    if (!ref) return undefined;
     try {
-      const { storage } = getFirebase();
-      const url = await getDownloadURL(ref(storage, path));
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return undefined;
+      const data = snap.data() as PhotoDoc;
+      // Copy into a plain ArrayBuffer-backed array (Blob rejects SharedArrayBuffer views).
+      const blob = new Blob([new Uint8Array(data.bytes.toUint8Array())], { type: data.contentType });
+      await db.put('photos', { path, blob });
+      const url = await blobToDataUrl(blob);
       this.urlCache.set(path, url);
       return url;
     } catch {
@@ -151,4 +159,18 @@ export class CloudStore implements Store {
     const entries = await this.listEntries(petId, 0, Number.MAX_SAFE_INTEGER);
     return { pet, entries };
   }
+
+  /** Document reference for a cloud photo path, or undefined for other paths. */
+  private photoRef(path: string) {
+    if (!path.startsWith(PHOTO_PREFIX)) return undefined;
+    const segments = path.slice(PHOTO_PREFIX.length).split('/');
+    if (segments.length !== 6) return undefined;
+    const { db } = getFirebase();
+    return doc(db, ...(segments as [string, ...string[]]));
+  }
+}
+
+/** Firestore rejects `undefined` field values; drop them. */
+function stripUndefined<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
 }

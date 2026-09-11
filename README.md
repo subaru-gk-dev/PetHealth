@@ -30,34 +30,29 @@ npm run build:artifact   # 1 枚の HTML（dist-artifact/artifact.html）。ホ�
 
 | 方法 | URL | できること |
 | --- | --- | --- |
-| GitHub Pages（`.github/workflows/pages.yml`・main への push で自動） | <https://subaru-gk-dev.github.io/PetHealth/> | PWA として動く。ホーム画面追加・オフライン。Firebase の値を Actions の Variables に入れれば家族共有も |
+| GitHub Pages（`.github/workflows/pages.yml`・main への push で自動） | <https://subaru-gk-dev.github.io/PetHealth/> | PWA として動く。ホーム画面追加・オフライン。`.env.production` に Firebase の値を入れれば家族共有も |
 | Firebase Hosting（下記） | Firebase が発行 | 同上。Firestore と同じプロジェクトでまとめられる |
 | 1 枚 HTML（`npm run build:artifact`） | 任意の置き場所 | 端末内のみの試用。カメラ・記録・グラフは動くが SW と Firebase は無し |
 
 GitHub Pages を使うときはリポジトリの Settings → Pages → Source を **GitHub Actions** にする。
 
-## 家族共有を有効にする（Firebase）
+## 家族共有を有効にする（Firebase・無料枠のみ・カード登録不要）
+
+写真も Firestore に入れる設計なので Cloud Storage（Blaze プラン）は使いません。
 
 1. <https://console.firebase.google.com> で新しいプロジェクトを作る（Analytics は不要）。
-2. **Authentication** → ログイン方法 → **Google** を有効化。
-3. **Firestore Database** を作成（本番モード・リージョンは asia-northeast1 など）。
-4. **Storage** を作成。
-5. プロジェクトの設定 → マイアプリ → **ウェブアプリ** を追加 → 表示される `firebaseConfig` の値を `.env.local` に貼る：
-   ```bash
-   cp .env.example .env.local
-   # VITE_FIREBASE_API_KEY=... などを埋める
-   ```
-6. セキュリティルールを配置し、Hosting に公開する（初回は `npm i -g firebase-tools` と `firebase login`）：
-   ```bash
-   firebase use --add            # 上で作ったプロジェクトを選ぶ
-   firebase deploy --only firestore:rules,storage
-   npm run build
-   firebase deploy --only hosting
-   ```
-7. 表示された URL を Android Chrome で開き、Google でログイン → 「はじめて使う」で家の名前を入れる → わんこを登録。
-8. 家族には **設定 → 家族と共有** の 6 文字コードを伝える。家族は同じ URL を開いてログインし「家族に招待された」にコードを入れる。
+2. **Authentication** → 始める → ログイン方法で **Google** を有効化。
+3. **Authentication** → Settings → **承認済みドメイン** に公開先（例 `subaru-gk-dev.github.io`）を追加。
+4. **Firestore Database** → データベースを作成（本番モード・ロケーション asia-northeast1）。
+5. **ルール** タブに `firestore.rules` の内容を貼り付けて公開。
+6. 歯車 → プロジェクトの設定 → マイアプリ → **ウェブアプリ** を追加 → 表示される `firebaseConfig` の 6 値を `.env.production` に書く（`.env.example` と同じキー名）。この値は公開前提で、守りはルールと承認済みドメインが担う。
+7. `git push` すると GitHub Pages が共有モードで配信される（ローカル確認は `.env.local` に同じ値を入れて `npm run dev`）。
+8. URL を Android Chrome で開き、Google でログイン → 「はじめて使う」で家の名前を入れる → わんこを登録。
+9. 家族には **設定 → 家族と共有** の 6 文字コードを伝える。家族は同じ URL を開いてログインし「家族に招待された」にコードを入れる。
 
 Firestore の複合インデックスを求めるエラーがコンソールに出たら、エラー文中のリンクを開いて作成する（`entries` の `at` 昇順）。
+
+無料枠の目安＝保存 1 GiB（縮小済み写真で 3000〜5000 枚）・読み取り 5 万回/日・書き込み 2 万回/日。家族数人の記録なら十分。
 
 ## 構成
 
@@ -71,13 +66,13 @@ src/
   model/calc.ts         日別集計・ml/kg 換算（tests/calc.test.ts）
   store/types.ts        Store インターフェース
   store/local.ts        IndexedDB のみ
-  store/cloud.ts        Firestore + Storage（写真は送信待ち行列つき）
+  store/cloud.ts        Firestore（記録も写真も。オフライン時は SDK が送信を保留）
   pages/Home.tsx        ワンタップボタン＋タイムライン
   pages/EntryForm.tsx   記録の入力・編集
   pages/Charts.tsx      グラフ
   pages/Settings.tsx    ログイン・世帯・ペット・バックアップ
   components/PhotoCapture.tsx  カメラ起動と縮小
-firestore.rules / storage.rules  世帯メンバーだけ読み書き可
+firestore.rules       世帯メンバーだけ読み書き可
 ```
 
 ## データ
@@ -88,8 +83,9 @@ households/{hid}/pets/{petId}          name, breed, sex, birthDate, currentWeigh
 households/{hid}/pets/{petId}/entries/{entryId}
     type   'stool'|'urine'|'water'|'meal'|'med'|'weight'|'vital'|'vomit'|'vet'|'note'
     at     発生時刻（epoch ms）   createdAt / createdBy / createdByName
-    note   メモ                   photoPaths[]  Storage のパス
+    note   メモ                   photoPaths[]  fs:households/.../photos/{photoId}
     data   type 別の項目（water: kind, ml, offeredMl, leftMl, milkMl, waterMl など）
+households/{hid}/pets/{petId}/photos/{photoId}   entryId, contentType, bytes（JPEG）, createdAt
 ```
 
 ## 今後
