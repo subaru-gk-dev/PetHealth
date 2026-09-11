@@ -2,6 +2,7 @@
 // Used when Firebase is not configured, and handy for trying the app.
 
 import type { Entry, Pet } from '../model/entry';
+import { blobToDataUrl } from '../util/blob';
 import { localDb } from './localdb';
 import type { Store, Unsubscribe } from './types';
 
@@ -81,7 +82,7 @@ export class LocalStore implements Store {
     const db = await localDb();
     const row = await db.get('photos', path);
     if (!row) return undefined;
-    const url = URL.createObjectURL(row.blob);
+    const url = await blobToDataUrl(row.blob);
     this.objectUrls.set(path, url);
     return url;
   }

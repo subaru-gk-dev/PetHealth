@@ -200,6 +200,18 @@ function PetForm({ pet }: { pet?: Pet }) {
 function Backup() {
   const { store, pet } = useSession();
   const [busy, setBusy] = useState(false);
+  // The single-file trial page cannot hand the viewer a file to save.
+  if (import.meta.env.VITE_SINGLE_FILE) {
+    return (
+      <div class="card">
+        <h3>試用版について</h3>
+        <p class="hint">
+          この画面は試用版です。記録はこのブラウザの中にだけ残ります。
+          バックアップと家族共有は、公開版（README の手順）で使えます。
+        </p>
+      </div>
+    );
+  }
   const download = async () => {
     if (!store || !pet) return;
     setBusy(true);

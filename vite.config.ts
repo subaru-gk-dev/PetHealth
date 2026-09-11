@@ -2,8 +2,12 @@ import { defineConfig } from 'vitest/config';
 import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// VITE_BASE='/' for Firebase Hosting (default), '/PetHealth/' for GitHub Pages.
+const base = process.env.VITE_BASE ?? '/';
+
 // PWA build for the pet health log. See README.md for deployment steps.
 export default defineConfig({
+  base,
   plugins: [
     preact(),
     VitePWA({
@@ -14,7 +18,8 @@ export default defineConfig({
         short_name: '健康ノート',
         description: '愛犬の便・飲水・食事・体調を記録するアプリ',
         lang: 'ja',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#fffaf3',
@@ -27,7 +32,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
       },
     }),
   ],

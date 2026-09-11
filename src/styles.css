@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --bg: #fffaf3;
   --card: #ffffff;
   --ink: #2f2a25;
@@ -8,6 +9,33 @@
   --line: #ecdfd0;
   --danger: #c0392b;
   --tap: 56px;
+}
+
+/* Dark: follows the OS unless the host stamps an explicit light choice. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #1d1916;
+    --card: #2a2420;
+    --ink: #f3ebe2;
+    --muted: #a89c90;
+    --accent: #e8955a;
+    --accent-ink: #1d1916;
+    --line: #3d342d;
+    --danger: #ff7b6b;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #1d1916;
+  --card: #2a2420;
+  --ink: #f3ebe2;
+  --muted: #a89c90;
+  --accent: #e8955a;
+  --accent-ink: #1d1916;
+  --line: #3d342d;
+  --danger: #ff7b6b;
 }
 
 * {

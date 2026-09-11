@@ -17,6 +17,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { getFirebase } from '../firebase';
 import type { Entry, Pet } from '../model/entry';
+import { blobToDataUrl } from '../util/blob';
 import { localDb } from './localdb';
 import type { Store, Unsubscribe } from './types';
 
@@ -130,7 +131,7 @@ export class CloudStore implements Store {
     const db = await localDb();
     const local = await db.get('photos', path);
     if (local) {
-      const url = URL.createObjectURL(local.blob);
+      const url = await blobToDataUrl(local.blob);
       this.urlCache.set(path, url);
       return url;
     }

@@ -1,6 +1,5 @@
-// Firebase initialisation. When VITE_FIREBASE_* is not configured the app runs
-// in local-only mode (IndexedDB on this device) so it can be tried without any
-// cloud project.
+// Firebase initialisation. Only imported (dynamically) from the cloud modules,
+// so local-only builds never pull the SDK into the initial bundle.
 
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
@@ -11,19 +10,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
-
-const env = import.meta.env;
-
-export const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY as string | undefined,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
-  projectId: env.VITE_FIREBASE_PROJECT_ID as string | undefined,
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
-  appId: env.VITE_FIREBASE_APP_ID as string | undefined,
-};
-
-export const isCloudEnabled = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+import { firebaseConfig, isCloudEnabled } from './config';
 
 let app: FirebaseApp | undefined;
 let auth: Auth | undefined;

@@ -23,7 +23,18 @@ npm run dev        # http://localhost:5173（--host 付きなので同じ Wi-Fi 
 npm test           # 集計ロジックの単体テスト（Vitest）
 npm run build      # 型チェック → dist/ に出力
 npm run preview    # dist/ を配信して確認
+npm run build:artifact   # 1 枚の HTML（dist-artifact/artifact.html）。ホスティング無しでスマホ試用する用
 ```
+
+## 公開先
+
+| 方法 | URL | できること |
+| --- | --- | --- |
+| GitHub Pages（`.github/workflows/pages.yml`・main への push で自動） | `https://<owner>.github.io/PetHealth/` | PWA として動く。ホーム画面追加・オフライン。Firebase の値を Actions の Variables に入れれば家族共有も |
+| Firebase Hosting（下記） | Firebase が発行 | 同上。Firestore と同じプロジェクトでまとめられる |
+| 1 枚 HTML（`npm run build:artifact`） | 任意の置き場所 | 端末内のみの試用。カメラ・記録・グラフは動くが SW と Firebase は無し |
+
+GitHub Pages を使うときはリポジトリの Settings → Pages → Source を **GitHub Actions** にする。
 
 ## 家族共有を有効にする（Firebase）
 

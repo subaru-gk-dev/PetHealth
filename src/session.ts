@@ -1,22 +1,9 @@
 // Session state: who is signed in, which household and pet are active, and
 // which Store implementation to use. Exposed as a tiny observable so Preact
-// components can re-render on change.
+// components can re-render on change. Firebase code is loaded on demand.
 
-import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
-import {
-  arrayUnion,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
-import { getFirebase, googleProvider, isCloudEnabled } from './firebase';
-import { newId, type Household, type Pet } from './model/entry';
-import { CloudStore } from './store/cloud';
+import { isCloudEnabled } from './config';
+import type { Household, Pet } from './model/entry';
 import { LocalStore } from './store/local';
 import { getMeta, setMeta } from './store/localdb';
 import type { Store } from './store/types';
@@ -31,6 +18,7 @@ export interface SessionState {
 }
 
 type Listener = (s: SessionState) => void;
+type CloudSession = typeof import('./store/cloudSession');
 
 const LOCAL_UID = 'local';
 
@@ -44,6 +32,7 @@ class Session {
     store: null,
   };
   private listeners = new Set<Listener>();
+  private cloudModule: Promise<CloudSession> | undefined;
 
   subscribe(l: Listener): () => void {
     this.listeners.add(l);
@@ -54,6 +43,11 @@ class Session {
   private set(patch: Partial<SessionState>): void {
     this.state = { ...this.state, ...patch };
     for (const l of this.listeners) l(this.state);
+  }
+
+  private cloud(): Promise<CloudSession> {
+    if (!this.cloudModule) this.cloudModule = import('./store/cloudSession');
+    return this.cloudModule;
   }
 
   async start(): Promise<void> {
@@ -69,72 +63,46 @@ class Session {
       });
       return;
     }
-    const { auth } = getFirebase();
-    onAuthStateChanged(auth, (user) => void this.onUser(user));
+    const cloud = await this.cloud();
+    cloud.watchAuth((user) => void this.onUser(user));
   }
 
-  private async onUser(user: User | null): Promise<void> {
+  private async onUser(user: SessionState['user']): Promise<void> {
     if (!user) {
       this.set({ ready: true, user: null, household: null, pet: null, store: null });
       return;
     }
-    const info = { uid: user.uid, name: user.displayName ?? user.email ?? 'ユーザー' };
-    const household = await this.findHousehold(user.uid);
+    const cloud = await this.cloud();
+    const household = await cloud.findHousehold(user.uid);
     if (!household) {
-      this.set({ ready: true, user: info, household: null, pet: null, store: null });
+      this.set({ ready: true, user, household: null, pet: null, store: null });
       return;
     }
-    await this.activateHousehold(info, household);
+    await this.activateHousehold(user, household);
   }
 
   private async activateHousehold(user: SessionState['user'], household: Household) {
-    const store = new CloudStore(household.id);
+    const cloud = await this.cloud();
+    const store = cloud.makeStore(household.id);
     const pets = await store.listPets();
     const lastPetId = await getMeta<string>('lastPetId');
     const pet = pets.find((p) => p.id === lastPetId) ?? pets[0] ?? null;
     this.set({ ready: true, user, household, pet, store });
   }
 
-  private async findHousehold(uid: string): Promise<Household | null> {
-    const { db } = getFirebase();
-    const lastId = await getMeta<string>('lastHouseholdId');
-    if (lastId) {
-      const snap = await getDoc(doc(db, 'households', lastId));
-      if (snap.exists()) {
-        const h = snap.data() as Household;
-        if (h.memberUids.includes(uid)) return h;
-      }
-    }
-    const q = query(collection(db, 'households'), where('memberUids', 'array-contains', uid));
-    const snap = await getDocs(q);
-    const h = snap.docs[0]?.data() as Household | undefined;
-    if (h) await setMeta('lastHouseholdId', h.id);
-    return h ?? null;
-  }
-
   async signIn(): Promise<void> {
-    const { auth } = getFirebase();
-    await signInWithPopup(auth, googleProvider);
+    await (await this.cloud()).signIn();
   }
 
   async signOut(): Promise<void> {
-    const { auth } = getFirebase();
-    await signOut(auth);
+    await (await this.cloud()).signOut();
   }
 
   /** Create a household owned by the current user. */
   async createHousehold(name: string): Promise<void> {
     const user = this.state.user;
     if (!user) throw new Error('not signed in');
-    const { db } = getFirebase();
-    const household: Household = {
-      id: newId(),
-      name,
-      memberUids: [user.uid],
-      inviteCode: makeInviteCode(),
-    };
-    await setDoc(doc(db, 'households', household.id), household);
-    await setMeta('lastHouseholdId', household.id);
+    const household = await (await this.cloud()).createHousehold(user.uid, name);
     await this.activateHousehold(user, household);
   }
 
@@ -142,16 +110,7 @@ class Session {
   async joinHousehold(inviteCode: string): Promise<void> {
     const user = this.state.user;
     if (!user) throw new Error('not signed in');
-    const { db } = getFirebase();
-    const code = inviteCode.trim().toUpperCase();
-    const q = query(collection(db, 'households'), where('inviteCode', '==', code));
-    const snap = await getDocs(q);
-    const found = snap.docs[0];
-    if (!found) throw new Error('招待コードが見つかりません');
-    await updateDoc(found.ref, { memberUids: arrayUnion(user.uid) });
-    const household = { ...(found.data() as Household) };
-    if (!household.memberUids.includes(user.uid)) household.memberUids.push(user.uid);
-    await setMeta('lastHouseholdId', household.id);
+    const household = await (await this.cloud()).joinHousehold(user.uid, inviteCode);
     await this.activateHousehold(user, household);
   }
 
@@ -162,13 +121,6 @@ class Session {
     await setMeta('lastPetId', pet.id);
     this.set({ pet });
   }
-}
-
-function makeInviteCode(): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s = '';
-  for (let i = 0; i < 6; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return s;
 }
 
 export const session = new Session();

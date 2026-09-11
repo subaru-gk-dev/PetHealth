@@ -23,6 +23,7 @@ import {
   type WaterKind,
   type WeightData,
 } from '../model/entry';
+import { blobToDataUrl } from '../util/blob';
 import { fromDateTimeLocal, toDateTimeLocal } from '../util/format';
 
 interface Props {
@@ -147,7 +148,9 @@ export function EntryForm({ route }: Props) {
         <div class="field">
           <PhotoCapture
             onPhoto={(blob) =>
-              setPendingPhotos((ps) => [...ps, { blob, url: URL.createObjectURL(blob) }])
+              void blobToDataUrl(blob).then((url) =>
+                setPendingPhotos((ps) => [...ps, { blob, url }]),
+              )
             }
           />
           {(entry.photoPaths.length > 0 || pendingPhotos.length > 0) && (

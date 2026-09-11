@@ -41,6 +41,12 @@ Chart.register(
 );
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Read a theme token so chart text and lines follow light/dark. */
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 const KIND_COLOR: Record<WaterKind, string> = {
   water: '#5b9bd5',
   milk: '#f2c94c',
@@ -67,6 +73,12 @@ export function Charts() {
   const stool = useMemo(() => stoolByDay(entries, keys), [entries, keys]);
   const weights = useMemo(() => weightSeries(weightEntries), [weightEntries]);
 
+  const ink = cssVar('--ink') || '#2f2a25';
+  const muted = cssVar('--muted') || '#7d746b';
+  const line = cssVar('--line') || '#ecdfd0';
+  Chart.defaults.color = muted;
+  Chart.defaults.borderColor = line;
+
   const waterCfg: ChartConfiguration = {
     type: 'bar',
     data: {
@@ -85,8 +97,8 @@ export function Charts() {
                 type: 'line' as const,
                 label: 'ml/kg',
                 data: keys.map((d) => mlPerKg(totalMl(water.get(d)!), weightKg) ?? 0),
-                borderColor: '#2f2a25',
-                backgroundColor: '#2f2a25',
+                borderColor: ink,
+                backgroundColor: ink,
                 yAxisID: 'y2',
                 tension: 0.2,
               },
@@ -133,8 +145,8 @@ export function Charts() {
           type: 'line' as const,
           label: '硬さ（平均）',
           data: keys.map((d) => stool.get(d)!.meanScore ?? null),
-          borderColor: '#2f2a25',
-          backgroundColor: '#2f2a25',
+          borderColor: ink,
+          backgroundColor: ink,
           yAxisID: 'y2',
           spanGaps: true,
           tension: 0.2,
@@ -201,7 +213,7 @@ export function Charts() {
           ))}
           {weightKg && (
             <span>
-              <i style={{ background: '#2f2a25' }} />
+              <i style={{ background: ink }} />
               ml/kg（体重 {weightKg} kg）
             </span>
           )}
