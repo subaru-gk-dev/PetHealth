@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { Photo } from '../components/Photo';
+import { NumberInput } from '../components/NumberInput';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { navigate, useSession, useTheme } from '../hooks';
 import { newId, type Pet } from '../model/entry';
@@ -234,15 +235,10 @@ function PetForm({ pet }: { pet?: Pet }) {
         </div>
         <div class="field">
           <label>体重 kg（目安）</label>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            value={draft.currentWeightKg ?? ''}
-            onInput={(ev) => {
-              const n = Number(ev.currentTarget.value);
-              patch({ currentWeightKg: ev.currentTarget.value === '' || !n ? undefined : roundKg(n) });
-            }}
+          <NumberInput
+            value={draft.currentWeightKg}
+            testId="pet-weight"
+            onChange={(n) => patch({ currentWeightKg: n === undefined || !n ? undefined : roundKg(n) })}
           />
         </div>
       </div>

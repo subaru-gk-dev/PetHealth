@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Photo } from '../components/Photo';
+import { NumberInput } from '../components/NumberInput';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { navigate, useSession } from '../hooks';
 import { drunkMl, roundKg } from '../model/calc';
@@ -236,11 +237,6 @@ function Chips<T extends string | number | boolean>({
   );
 }
 
-function num(v: string): number | undefined {
-  const n = Number(v);
-  return v === '' || !Number.isFinite(n) ? undefined : n;
-}
-
 function TypeFields({
   entry,
   patchData,
@@ -361,12 +357,9 @@ function TypeFields({
           <div class="row">
             <div class="field">
               <label>与えた量 ml</label>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={d.offeredMl ?? ''}
-                onInput={(ev) => {
-                  const offeredMl = num(ev.currentTarget.value);
+              <NumberInput
+                value={d.offeredMl}
+                onChange={(offeredMl) => {
                   const p: Partial<WaterData> = { offeredMl };
                   if (offeredMl !== undefined && d.leftMl !== undefined) {
                     p.ml = drunkMl(offeredMl, d.leftMl);
@@ -377,12 +370,9 @@ function TypeFields({
             </div>
             <div class="field">
               <label>残った量 ml</label>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={d.leftMl ?? ''}
-                onInput={(ev) => {
-                  const leftMl = num(ev.currentTarget.value);
+              <NumberInput
+                value={d.leftMl}
+                onChange={(leftMl) => {
                   const p: Partial<WaterData> = { leftMl };
                   if (leftMl !== undefined && d.offeredMl !== undefined) {
                     p.ml = drunkMl(d.offeredMl, leftMl);
@@ -394,35 +384,22 @@ function TypeFields({
           </div>
           <div class="field">
             <label>飲んだ量 ml（上の2つを入れると自動計算）</label>
-            <input
-              type="number"
-              inputMode="decimal"
+            <NumberInput
               required
-              min="0"
-              value={d.ml || ''}
-              data-testid="water-ml"
-              onInput={(ev) => patchData({ ml: num(ev.currentTarget.value) ?? 0 })}
+              value={d.ml || undefined}
+              testId="water-ml"
+              onChange={(n) => patchData({ ml: n ?? 0 })}
             />
           </div>
           {d.kind === 'milk' && (
             <div class="row">
               <div class="field">
                 <label>ミルク原液 ml</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={d.milkMl ?? ''}
-                  onInput={(ev) => patchData({ milkMl: num(ev.currentTarget.value) })}
-                />
+                <NumberInput value={d.milkMl} onChange={(milkMl) => patchData({ milkMl })} />
               </div>
               <div class="field">
                 <label>薄める水 ml</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={d.waterMl ?? ''}
-                  onInput={(ev) => patchData({ waterMl: num(ev.currentTarget.value) })}
-                />
+                <NumberInput value={d.waterMl} onChange={(waterMl) => patchData({ waterMl })} />
               </div>
             </div>
           )}
@@ -444,12 +421,7 @@ function TypeFields({
             </div>
             <div class="field">
               <label>量 g</label>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={d.grams ?? ''}
-                onInput={(ev) => patchData({ grams: num(ev.currentTarget.value) })}
-              />
+              <NumberInput value={d.grams} onChange={(grams) => patchData({ grams })} />
             </div>
           </div>
           <div class="field">
@@ -535,14 +507,11 @@ function TypeFields({
       return (
         <div class="field">
           <label>体重 kg</label>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
+          <NumberInput
             required
-            min="0.1"
-            value={d.kg || ''}
-            onInput={(ev) => patchData({ kg: roundKg(num(ev.currentTarget.value) ?? 0) })}
+            value={d.kg || undefined}
+            testId="weight-kg"
+            onChange={(n) => patchData({ kg: roundKg(n ?? 0) })}
           />
         </div>
       );
@@ -553,30 +522,22 @@ function TypeFields({
         <div class="row">
           <div class="field">
             <label>体温 ℃</label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              value={d.tempC ?? ''}
-              onInput={(ev) => patchData({ tempC: num(ev.currentTarget.value) })}
-            />
+            <NumberInput value={d.tempC} onChange={(tempC) => patchData({ tempC })} />
           </div>
           <div class="field">
             <label>安静時呼吸 /分</label>
-            <input
-              type="number"
+            <NumberInput
               inputMode="numeric"
-              value={d.rrPerMin ?? ''}
-              onInput={(ev) => patchData({ rrPerMin: num(ev.currentTarget.value) })}
+              value={d.rrPerMin}
+              onChange={(rrPerMin) => patchData({ rrPerMin })}
             />
           </div>
           <div class="field">
             <label>心拍 /分</label>
-            <input
-              type="number"
+            <NumberInput
               inputMode="numeric"
-              value={d.hrPerMin ?? ''}
-              onInput={(ev) => patchData({ hrPerMin: num(ev.currentTarget.value) })}
+              value={d.hrPerMin}
+              onChange={(hrPerMin) => patchData({ hrPerMin })}
             />
           </div>
         </div>
@@ -601,12 +562,7 @@ function TypeFields({
           </div>
           <div class="field">
             <label>回数</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={d.count ?? ''}
-              onInput={(ev) => patchData({ count: num(ev.currentTarget.value) })}
-            />
+            <NumberInput inputMode="numeric" value={d.count} onChange={(count) => patchData({ count })} />
           </div>
         </>
       );
@@ -642,11 +598,10 @@ function TypeFields({
           <div class="row">
             <div class="field">
               <label>費用 円</label>
-              <input
-                type="number"
+              <NumberInput
                 inputMode="numeric"
-                value={d.costYen ?? ''}
-                onInput={(ev) => patchData({ costYen: num(ev.currentTarget.value) })}
+                value={d.costYen}
+                onChange={(costYen) => patchData({ costYen })}
               />
             </div>
             <div class="field">
