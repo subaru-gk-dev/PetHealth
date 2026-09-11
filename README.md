@@ -30,7 +30,7 @@ npm run build:artifact   # 1 枚の HTML（dist-artifact/artifact.html）。ホ�
 
 | 方法 | URL | できること |
 | --- | --- | --- |
-| GitHub Pages（`.github/workflows/pages.yml`・main への push で自動） | `https://<owner>.github.io/PetHealth/` | PWA として動く。ホーム画面追加・オフライン。Firebase の値を Actions の Variables に入れれば家族共有も |
+| GitHub Pages（`.github/workflows/pages.yml`・main への push で自動） | <https://subaru-gk-dev.github.io/PetHealth/> | PWA として動く。ホーム画面追加・オフライン。Firebase の値を Actions の Variables に入れれば家族共有も |
 | Firebase Hosting（下記） | Firebase が発行 | 同上。Firestore と同じプロジェクトでまとめられる |
 | 1 枚 HTML（`npm run build:artifact`） | 任意の置き場所 | 端末内のみの試用。カメラ・記録・グラフは動くが SW と Firebase は無し |
 
