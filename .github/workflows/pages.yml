@@ -26,6 +26,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Creates the Pages site on first run so no manual Settings step is needed.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - run: npm ci
       - run: npm test
       - run: npm run build
